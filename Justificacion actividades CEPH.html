@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Control Contable - Iglesias de Huelva</title>
+    
+    <!-- Configuración PWA para Android -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#4338ca">
+    <link rel="manifest" href="data:application/manifest+json;charset=utf-8,{
+        %22name%22: %22Control Contable FRAPAH%22,
+        %22short_name%22: %22Contabilidad%22,
+        %22start_url%22: %22.%22,
+        %22display%22: %22standalone%22,
+        %22background_color%22: %22%23f8fafc%22,
+        %22theme_color%22: %22%234338ca%22,
+        %22icons%22: [{
+            %22src%22: %22https://cdn-icons-png.flaticon.com/512/2830/2830284.png%22,
+            %22sizes%22: %22512x512%22,
+            %22type%22: %22image/png%22
+        }]
+    }">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col select-none">
+    <!-- Header -->
+    <header class="bg-indigo-700 text-white shadow-md sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-col sm:flex-row justify-between items-center">
+            <div class="flex items-center space-x-3 mb-2 sm:mb-0 w-full sm:w-auto justify-between sm:justify-start">
+                <div class="flex items-center space-x-3">
+                    <div class="bg-white/10 p-2 rounded-lg">
+                        <i class="fa-solid fa-calculator text-xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-base font-bold tracking-tight">Control Contable</h1>
+                        <p class="text-[11px] text-indigo-200">Iglesias Evangélicas de Huelva</p>
+                    </div>
+                </div>
+            </div>
+            <div class="flex space-x-2 w-full sm:w-auto justify-end">
+                <button onclick="exportData()" class="bg-indigo-600 hover:bg-indigo-500 text-xs px-3 py-2 rounded-lg font-medium transition flex items-center space-x-1.5 border border-indigo-500">
+                    <i class="fa-solid fa-file-excel"></i><span>Exportar</span>
+                </button>
+                <button onclick="resetData()" class="bg-rose-600/80 hover:bg-rose-600 text-xs px-3 py-2 rounded-lg font-medium transition flex items-center space-x-1.5">
+                    <i class="fa-solid fa-rotate-right"></i><span>Restaurar</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="max-w-7xl mx-auto px-3 py-4 flex-grow w-full space-y-4">
+        
+        <!-- KPIs Overview -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Remanente</p>
+                <h2 id="kpi-remanente" class="text-lg font-bold text-slate-700 mt-1">0,00 €</h2>
+            </div>
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Ingresos</p>
+                <h2 id="kpi-ingresos" class="text-lg font-bold text-emerald-600 mt-1">0,00 €</h2>
+            </div>
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Gastos</p>
+                <h2 id="kpi-gastos" class="text-lg font-bold text-rose-600 mt-1">0,00 €</h2>
+            </div>
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Saldo Total</p>
+                <h2 id="kpi-saldo" class="text-lg font-bold text-indigo-600 mt-1">0,00 €</h2>
+            </div>
+        </div>
+
+        <!-- Action Bar & Tabs -->
+        <div class="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 bg-white p-3 rounded-xl shadow-sm border border-slate-200">
+            <div class="grid grid-cols-2 gap-2">
+                <button onclick="switchTab('gastos')" id="btn-tab-gastos" class="px-3 py-2 text-xs font-semibold rounded-lg transition bg-indigo-600 text-white shadow-sm flex items-center justify-center">
+                    <i class="fa-solid fa-receipt mr-1.5"></i>Gastos / Ingresos
+                </button>
+                <button onclick="switchTab('iglesias')" id="btn-tab-iglesias" class="px-3 py-2 text-xs font-semibold rounded-lg transition bg-slate-100 text-slate-600 hover:bg-slate-200 flex items-center justify-center">
+                    <i class="fa-solid fa-church mr-1.5"></i>Reparto Iglesias
+                </button>
+            </div>
+            <div>
+                <button onclick="openModal('movimiento')" class="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-4 py-2.5 rounded-lg shadow-sm transition flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-plus"></i><span>Nuevo Movimiento / Factura</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Section: Gastos / Ingresos -->
+        <div id="section-gastos" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="px-4 py-3 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <h3 class="font-bold text-slate-800 text-sm">Registro de Gastos y Movimientos</h3>
+                <span class="text-[11px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full font-medium" id="count-gastos">0 registros</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs text-slate-600">
+                    <thead class="bg-slate-50 uppercase text-slate-400 font-semibold border-b border-slate-100">
+                        <tr>
+                            <th class="px-4 py-2.5">Concepto / Proveedor</th>
+                            <th class="px-4 py-2.5">Tipo</th>
+                            <th class="px-4 py-2.5 text-right">Ingreso</th>
+                            <th class="px-4 py-2.5 text-right">Gasto</th>
+                            <th class="px-4 py-2.5 text-center">Factura</th>
+                            <th class="px-4 py-2.5 text-right">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-gastos-body" class="divide-y divide-slate-100"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Section: Iglesias -->
+        <div id="section-iglesias" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hidden">
+            <div class="px-4 py-3 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <h3 class="font-bold text-slate-800 text-sm">Reparto de Módulos (Iglesias y Entidades)</h3>
+                <span class="text-[11px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full font-medium" id="total-modulos-badge">Total Módulos: 34</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs text-slate-600">
+                    <thead class="bg-slate-50 uppercase text-slate-400 font-semibold border-b border-slate-100">
+                        <tr>
+                            <th class="px-4 py-2.5">Iglesia / Entidad</th>
+                            <th class="px-4 py-2.5">Notas</th>
+                            <th class="px-4 py-2.5 text-center">Mód.</th>
+                            <th class="px-4 py-2.5 text-right">Euros</th>
+                            <th class="px-4 py-2.5 text-right">Pagado</th>
+                            <th class="px-4 py-2.5 text-center">Fecha</th>
+                            <th class="px-4 py-2.5 text-center">Justif.</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-iglesias-body" class="divide-y divide-slate-100"></tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal Formulario Movimiento -->
+    <div id="modal-movimiento" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden border border-slate-100">
+            <div class="px-5 py-3 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+                <h3 class="font-bold text-slate-800 text-sm">Añadir Nuevo Movimiento / Factura</h3>
+                <button onclick="closeModal('movimiento')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="p-5 space-y-3">
+                <div>
+                    <label class="block text-[11px] font-semibold uppercase text-slate-500 mb-1">Concepto o Proveedor</label>
+                    <input type="text" id="input-concepto" placeholder="Ej. Sonido, Alquiler..." class="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[11px] font-semibold uppercase text-slate-500 mb-1">Tipo</label>
+                        <select id="input-tipo" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            <option value="gasto">Gasto</option>
+                            <option value="ingreso">Ingreso</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-semibold uppercase text-slate-500 mb-1">Importe (€)</label>
+                        <input type="number" step="0.01" id="input-importe" placeholder="0.00" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-[11px] font-semibold uppercase text-slate-500 mb-1">Foto o Archivo de Factura</label>
+                    <input type="file" id="input-archivo" accept="image/*,application/pdf" class="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+                </div>
+            </div>
+            <div class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex justify-end space-x-2">
+                <button onclick="closeModal('movimiento')" class="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100">Cancelar</button>
+                <button onclick="saveMovimiento()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-sm">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Visor de Justificante -->
+    <div id="modal-visor" class="fixed inset-0 bg-slate-900/75 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="px-5 py-3 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+                <h3 class="font-bold text-slate-800 text-sm">Visualizar Factura / Justificante</h3>
+                <button onclick="closeModal('visor')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="p-4 flex-grow overflow-auto flex items-center justify-center bg-slate-900/5" id="visor-content">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const defaultGastos = [
+            { id: 1, concepto: "Saldo Remanente Anterior", tipo: "ingreso", importe: 116.54, archivo: null },
+            { id: 2, concepto: "Alquiler 700 Sillas", tipo: "gasto", importe: 798.60, archivo: null },
+            { id: 3, concepto: "Sonido Proinso", tipo: "gasto", importe: 1149.50, archivo: null },
+            { id: 4, concepto: "Donativo a Conferenciante + Viaje (400+100)", tipo: "gasto", importe: 500.00, archivo: null },
+            { id: 5, concepto: "Cátering Desayuno Los Molinos", tipo: "gasto", importe: 660.00, archivo: null },
+            { id: 6, concepto: "Ofrenda dia 1", tipo: "ingreso", importe: 1245.86, archivo: null },
+            { id: 7, concepto: "Ingreso de Iglesias", tipo: "ingreso", importe: 2720.00, archivo: null }
+        ];
+
+        const defaultIglesias = [
+            { nombre: "AA.HH. Luis Braille", obs: "", modulos: 3, euros: 240, pagado: 240, fecha: "2025-10-17", justificante: true },
+            { nombre: "Sión", obs: "", modulos: 2, euros: 160, pagado: 160, fecha: "2025-10-17", justificante: true },
+            { nombre: "Getsemaní", obs: "", modulos: 5, euros: 400, pagado: 400, fecha: "2025-10-16", justificante: true },
+            { nombre: "Getsemaní La Palma", obs: "", modulos: "-", euros: 80, pagado: 80, fecha: "2025-10-17", justificante: true },
+            { nombre: "Presbiteriana", obs: "", modulos: "-", euros: 80, pagado: 80, fecha: "2025-10-18", justificante: true },
+            { nombre: "Gerizím", obs: "", modulos: 5, euros: 400, pagado: 400, fecha: "2025-10-16", justificante: true },
+            { nombre: "Betania Huelva", obs: "", modulos: 3, euros: 240, pagado: 240, fecha: "2025-10-17", justificante: true },
+            { nombre: "Betania Punta Umbría", obs: "Recibe bizum 15 € Rios de Agua Viva", modulos: "-", euros: 80, pagado: 95, fecha: "2025-10-15", justificante: true },
+            { nombre: "Betania Isla Cristina", obs: "", modulos: "-", euros: 80, pagado: 80, fecha: "2025-10-17", justificante: true },
+            { nombre: "Ríos de Agua Viva - San Juan", obs: "65€ y hace bizum de 15 € a Betania", modulos: "-", euros: 80, pagado: 65, fecha: "2025-10-21", justificante: true },
+            { nombre: "Camino a Sión", obs: "", modulos: 2, euros: 160, pagado: 160, fecha: "2025-10-26", justificante: true },
+            { nombre: "Misión con Fe", obs: "", modulos: 4, euros: 320, pagado: 320, fecha: "2025-10-29", justificante: true },
+            { nombre: "IRE Renacer", obs: "", modulos: 2, euros: 160, pagado: 160, fecha: "2025-10-26", justificante: true },
+            { nombre: "RETO", obs: "", modulos: "-", euros: 80, pagado: 80, fecha: "2025-10-17", justificante: true },
+            { nombre: "Bautista - Oswaldo Matos Vangelis - Escacena", obs: "", modulos: 2, euros: 160, pagado: 160, fecha: "2025-10-27", justificante: true },
+            { nombre: "Renacer en Jesucristo", obs: "Exento", modulos: "-", euros: 0, pagado: 0, fecha: "-", justificante: false }
+        ];
+
+        let gastos = JSON.parse(localStorage.getItem('frapah_gastos')) || defaultGastos;
+        let iglesias = JSON.parse(localStorage.getItem('frapah_iglesias')) || defaultIglesias;
+
+        function saveData() {
+            localStorage.setItem('frapah_gastos', JSON.stringify(gastos));
+            localStorage.setItem('frapah_iglesias', JSON.stringify(iglesias));
+            render();
+        }
+
+        function resetData() {
+            if(confirm('¿Desea restaurar los datos iniciales oficiales del Excel?')) {
+                gastos = JSON.parse(JSON.stringify(defaultGastos));
+                iglesias = JSON.parse(JSON.stringify(defaultIglesias));
+                saveData();
+            }
+        }
+
+        function render() {
+            let totalIngresos = 0;
+            let totalGastos = 0;
+            
+            const tbodyGastos = document.getElementById('table-gastos-body');
+            tbodyGastos.innerHTML = '';
+
+            gastos.forEach((item, index) => {
+                if(item.tipo === 'ingreso') totalIngresos += item.importe;
+                else totalGastos += item.importe;
+
+                tbodyGastos.innerHTML += `
+                    <tr class="hover:bg-slate-50 transition">
+                        <td class="px-4 py-3 font-medium text-slate-800">${item.concepto}</td>
+                        <td class="px-4 py-3">
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold ${item.tipo === 'ingreso' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}">
+                                ${item.tipo.toUpperCase()}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 text-right font-semibold text-emerald-600">${item.tipo === 'ingreso' ? item.importe.toLocaleString('es-ES', {style: 'currency', currency: 'EUR'}) : '-'}</td>
+                        <td class="px-4 py-3 text-right font-semibold text-rose-600">${item.tipo === 'gasto' ? item.importe.toLocaleString('es-ES', {style: 'currency', currency: 'EUR'}) : '-'}</td>
+                        <td class="px-4 py-3 text-center">
+                            ${item.archivo ? `<button onclick="viewFile('${item.archivo}')" class="text-indigo-600 font-semibold text-[11px] bg-indigo-50 px-2 py-1 rounded-md"><i class="fa-solid fa-file-image"></i></button>` : '<span class="text-slate-300 text-[11px]">-</span>'}
+                        </td>
+                        <td class="px-4 py-3 text-right">
+                            <button onclick="deleteMovimiento(${index})" class="text-slate-400 hover:text-rose-600 p-1"><i class="fa-solid fa-trash-can"></i></button>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            document.getElementById('count-gastos').innerText = `${gastos.length} registros`;
+
+            const tbodyIglesias = document.getElementById('table-iglesias-body');
+            tbodyIglesias.innerHTML = '';
+            iglesias.forEach(ig => {
+                tbodyIglesias.innerHTML += `
+                    <tr class="hover:bg-slate-50 transition">
+                        <td class="px-4 py-3 font-medium text-slate-800">${ig.nombre}</td>
+                        <td class="px-4 py-3 text-[11px] text-slate-500">${ig.obs || '-'}</td>
+                        <td class="px-4 py-3 text-center">${ig.modulos}</td>
+                        <td class="px-4 py-3 text-right font-semibold">${typeof ig.euros === 'number' ? ig.euros.toLocaleString('es-ES', {style: 'currency', currency: 'EUR'}) : ig.euros}</td>
+                        <td class="px-4 py-3 text-right font-semibold text-emerald-600">${typeof ig.pagado === 'number' ? ig.pagado.toLocaleString('es-ES', {style: 'currency', currency: 'EUR'}) : ig.pagado}</td>
+                        <td class="px-4 py-3 text-center text-[11px]">${ig.fecha}</td>
+                        <td class="px-4 py-3 text-center">
+                            ${ig.justificante ? '<span class="text-[10px] bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded font-medium">Sí</span>' : '<span class="text-[10px] bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded">No</span>'}
+                        </td>
+                    </tr>
+                `;
+            });
+
+            const remanente = 116.54;
+            const saldoTotal = remanente + totalIngresos - totalGastos;
+
+            document.getElementById('kpi-remanente').innerText = remanente.toLocaleString('es-ES', {style: 'currency', currency: 'EUR'});
+            document.getElementById('kpi-ingresos').innerText = totalIngresos.toLocaleString('es-ES', {style: 'currency', currency: 'EUR'});
+            document.getElementById('kpi-gastos').innerText = totalGastos.toLocaleString('es-ES', {style: 'currency', currency: 'EUR'});
+            document.getElementById('kpi-saldo').innerText = saldoTotal.toLocaleString('es-ES', {style: 'currency', currency: 'EUR'});
+        }
+
+        function switchTab(tab) {
+            const btnGastos = document.getElementById('btn-tab-gastos');
+            const btnIglesias = document.getElementById('btn-tab-iglesias');
+            const secGastos = document.getElementById('section-gastos');
+            const secIglesias = document.getElementById('section-iglesias');
+
+            if(tab === 'gastos') {
+                btnGastos.className = "px-3 py-2 text-xs font-semibold rounded-lg transition bg-indigo-600 text-white shadow-sm flex items-center justify-center";
+                btnIglesias.className = "px-3 py-2 text-xs font-semibold rounded-lg transition bg-slate-100 text-slate-600 hover:bg-slate-200 flex items-center justify-center";
+                secGastos.classList.remove('hidden');
+                secIglesias.classList.add('hidden');
+            } else {
+                btnIglesias.className = "px-3 py-2 text-xs font-semibold rounded-lg transition bg-indigo-600 text-white shadow-sm flex items-center justify-center";
+                btnGastos.className = "px-3 py-2 text-xs font-semibold rounded-lg transition bg-slate-100 text-slate-600 hover:bg-slate-200 flex items-center justify-center";
+                secIglesias.classList.remove('hidden');
+                secGastos.classList.add('hidden');
+            }
+        }
+
+        function openModal(modalId) {
+            document.getElementById(`modal-${modalId}`).classList.remove('hidden');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(`modal-${modalId}`).classList.add('hidden');
+        }
+
+        function saveMovimiento() {
+            const concepto = document.getElementById('input-concepto').value.trim();
+            const tipo = document.getElementById('input-tipo').value;
+            const importe = parseFloat(document.getElementById('input-importe').value);
+            const archivoInput = document.getElementById('input-archivo');
+
+            if(!concepto || isNaN(importe)) {
+                alert('Por favor, completa los campos obligatorios.');
+                return;
+            }
+
+            if(archivoInput.files && archivoInput.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    gastos.push({ id: Date.now(), concepto, tipo, importe, archivo: e.target.result });
+                    saveData();
+                    closeModal('movimiento');
+                    document.getElementById('input-concepto').value = '';
+                    document.getElementById('input-importe').value = '';
+                    archivoInput.value = '';
+                };
+                reader.readAsDataURL(archivoInput.files[0]);
+            } else {
+                gastos.push({ id: Date.now(), concepto, tipo, importe, archivo: null });
+                saveData();
+                closeModal('movimiento');
+                document.getElementById('input-concepto'].value = '';
+                document.getElementById('input-importe').value = '';
+            }
+        }
+
+        function deleteMovimiento(index) {
+            if(confirm('¿Eliminar este registro contable?')) {
+                gastos.splice(index, 1);
+                saveData();
+            }
+        }
+
+        function viewFile(dataUrl) {
+            const content = document.getElementById('visor-content');
+            content.innerHTML = `<img src="${dataUrl}" class="max-h-[75vh] rounded-lg shadow-md mx-auto" alt="Factura">`;
+            openModal('visor');
+        }
+
+        function exportData() {
+            let csv = "Concepto;Tipo;Importe\n";
+            gastos.forEach(g => {
+                csv += `"${g.concepto}";${g.tipo};${g.importe}\n`;
+            });
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'contabilidad_eventos.csv';
+            a.click();
+        }
+
+        render();
+    </script>
+</body>
+</html>
